@@ -1,0 +1,6 @@
+Makefile*
+*build-*
+*.slo
+*.lo
+*.o
+*.obj

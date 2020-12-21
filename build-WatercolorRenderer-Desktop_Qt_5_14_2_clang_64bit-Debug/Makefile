@@ -37,7 +37,7 @@ MOVE          = mv -f
 TAR           = tar -cf
 COMPRESS      = gzip -9f
 DISTNAME      = WatercolorRenderer.bundle1.0.0
-DISTDIR = /Users/Jake/Documents/Penn/2020-2021/20Fall/Senior\ Design/SeniorDesign/build-WatercolorRenderer-Desktop_Qt_5_14_2_clang_64bit-Debug/.tmp/WatercolorRenderer.bundle1.0.0
+DISTDIR = /Users/Jake/Documents/Penn/2020-2021/20Fall/Senior\ Design/Senior-Design/build-WatercolorRenderer-Desktop_Qt_5_14_2_clang_64bit-Debug/.tmp/WatercolorRenderer.bundle1.0.0
 LINK          = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++
 LFLAGS        = -stdlib=libc++ -headerpad_max_install_names $(EXPORT_ARCH_ARGS) -Wl,-syslibroot,/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.0.sdk -mmacosx-version-min=10.13 -Wl,-rpath,@executable_path/../Frameworks
 LIBS          = $(SUBLIBS) -L/Applications/Autodesk/maya2019/Maya.app/Contents/MacOS -lOpenMaya -lOpenMayaUI -lOpenMayaRender -lOpenMayaAnim -lFoundation   
@@ -218,7 +218,6 @@ DIST          = /Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/features/spec_pre.p
 		/Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/features/qt_config.prf \
 		/Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/macx-clang/qmake.conf \
 		/Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/features/spec_post.prf \
-		../WatercolorRenderer/.qmake.stash \
 		/Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/features/exclusive_builds.prf \
 		/Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/features/mac/sdk.prf \
 		/Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/features/toolchain.prf \
@@ -267,7 +266,7 @@ EXPORT_QMAKE_XCODE_DEVELOPER_PATH = /Applications/Xcode.app/Contents/Developer
 EXPORT_VALID_ARCHS = x86_64
 EXPORT_ACTIVE_ARCHS = $(filter $(EXPORT_VALID_ARCHS), $(ARCHS))
 EXPORT_ARCH_ARGS = $(foreach arch, $(if $(EXPORT_ACTIVE_ARCHS), $(EXPORT_ACTIVE_ARCHS), $(EXPORT_VALID_ARCHS)), -arch $(arch))
-EXPORT__PRO_FILE_ = /Users/Jake/Documents/Penn/2020-2021/20Fall/Senior Design/SeniorDesign/WatercolorRenderer/WatercolorRenderer.pro
+EXPORT__PRO_FILE_ = /Users/Jake/Documents/Penn/2020-2021/20Fall/Senior Design/Senior-Design/WatercolorRenderer/WatercolorRenderer.pro
 
 
 include /Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/features/mac/sdk.mk
@@ -425,7 +424,6 @@ Makefile: ../WatercolorRenderer/WatercolorRenderer.pro /Users/Jake/Qt5.14.2/5.14
 		/Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/features/qt_config.prf \
 		/Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/macx-clang/qmake.conf \
 		/Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/features/spec_post.prf \
-		.qmake.stash \
 		/Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/features/exclusive_builds.prf \
 		/Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/features/mac/sdk.prf \
 		/Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/features/toolchain.prf \
@@ -597,7 +595,6 @@ Makefile: ../WatercolorRenderer/WatercolorRenderer.pro /Users/Jake/Qt5.14.2/5.14
 /Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/features/qt_config.prf:
 /Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/macx-clang/qmake.conf:
 /Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/features/spec_post.prf:
-.qmake.stash:
 /Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/features/exclusive_builds.prf:
 /Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/features/mac/sdk.prf:
 /Users/Jake/Qt5.14.2/5.14.2/clang_64/mkspecs/features/toolchain.prf:
@@ -643,7 +640,6 @@ clean: compiler_clean
 
 distclean: clean 
 	-$(DEL_FILE) $(TARGET) 
-	-$(DEL_FILE) .qmake.stash
 	-$(DEL_FILE) Makefile
 
 

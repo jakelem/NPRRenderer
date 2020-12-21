@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/">
+        <file>OGSFX/mayaClearColorTest.ogsfx</file>
+        <file>OGSFX/mayaClearColorMRTTest.ogsfx</file>
+        <file>OGSFX/mayaGeometryAttributeO.ogsfx</file>
+        <file>OGSFX/Common.ogsfh</file>
+        <file>OGSFX/mayaClearColorMRTO.ogsfx</file>
+        <file>OGSFX/bleedPass1.ogsfx</file>
+        <file>OGSFX/blurTest.ogsfx</file>
+        <file>OGSFX/clearColor.ogsfx</file>
+        <file>OGSFX/fixedColor.ogsfx</file>
+    </qresource>
+</RCC>

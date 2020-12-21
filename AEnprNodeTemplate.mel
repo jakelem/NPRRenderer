@@ -1,0 +1,47 @@
+ global proc AEnprNodeTemplate ( string $nodeName )
+ {
+ 	editorTemplate -beginScrollLayout;
+ 
+ 		editorTemplate -beginLayout "Paper" -collapse 1;
+ 			editorTemplate -addControl "paperColor";
+ 			editorTemplate -addControl "paperHeight";
+ 			editorTemplate -addControl "paperLightAngle";
+ 			editorTemplate -addControl "paperRoughness";
+ 			editorTemplate -addControl "paperDistortion";
+ 			editorTemplate -addControl "paperDryness";
+
+ 		editorTemplate -endLayout;
+
+ 		editorTemplate -beginLayout "Hatching" -collapse 1;
+ 		 	editorTemplate -addControl "hatchEnabled";
+ 		 	editorTemplate -addControl "hatchColor";
+ 		 	editorTemplate -addControl "hatchTextureFile";
+ 			editorTemplate -addControl "hatchAngle";
+ 			editorTemplate -addControl "hatchFrequency";
+ 			editorTemplate -addControl "hatchIntensity";
+ 			editorTemplate -addControl "hatchAngleStochasticity";
+ 			editorTemplate -addControl "hatchOffsetStochasticity";
+ 			editorTemplate -addControl "hatchCellBlending";
+
+ 		editorTemplate -endLayout;
+
+
+ 		 editorTemplate -beginLayout "Outlines" -collapse 1;
+ 		 	editorTemplate -addControl "outlineEnabled";
+ 			editorTemplate -addControl "outlineUseDepth";
+ 			editorTemplate -addControl "outlineThreshold";
+ 			editorTemplate -addControl "outlineThickness";
+ 			editorTemplate -addControl "outlineColor";
+
+ 		editorTemplate -endLayout;
+
+ 		editorTemplate -beginLayout "Watercolor" -collapse 1;
+ 		 	editorTemplate -addControl "watercolorOpacity";
+
+ 		editorTemplate -endLayout;
+
+  		editorTemplate -addExtraControls;
+ 
+ 	//	finish the scroll layout
+ 	editorTemplate -endScrollLayout;
+ }

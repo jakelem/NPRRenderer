@@ -1,0 +1,283 @@
+uniform mat4 world: World;
+uniform mat4 view: WorldView;
+uniform mat4 wvp : WorldViewProjection;
+uniform vec3 camDir : ViewDirection 
+<
+    string UIWidget = "None";
+>;
+uniform bool local : LocalViewer;
+uniform int frame : Frame;
+
+uniform vec3 u_PaperColor <
+    string UIName = "Paper Color";
+    string UIWidget = "ColorPicker";
+
+> = {1.0,1.0,1.0};
+
+uniform vec3 color;
+uniform float dilution = 1.0;
+uniform float dilutionFactor = 0.2;
+uniform float cangianteFactor = 0.2;
+uniform float noiseFrequency 
+<
+    string ResourceName = "";
+    string UIName = "Noise Frequency";
+    string ResourceType = "2D";
+> = 0.5;
+
+
+uniform bool textured = true;
+
+
+uniform float tremor 
+<
+    string ResourceName = "";
+    string UIName = "Hand Tremor Amount";
+    string ResourceType = "2D";
+> = 0.02;
+
+
+uniform texture2D diffuseImage
+<
+    string ResourceName = "";
+    string UIName = "Diffuse Image";
+    string ResourceType = "2D";
+    string UIWidget = "FilePicker";
+    string UIGroup = "Diffuse";
+>;
+
+
+uniform vec3 nonTexturedColor
+<
+    string UIName = "Non-Textured Color";
+    string UIWidget = "ColorPicker";
+> = {0.561,0.561,0.561};
+
+uniform sampler2D colorTex = sampler_state
+{
+    Texture = <diffuseImage>;
+};
+
+
+
+
+uniform vec3 Light0Pos : POSITION
+<
+    string UIWidget = "None";
+    string Space = "World";
+    string Object = "Light 0";
+> = {1.0, 1.0, 1.0};
+
+uniform vec3 Light0Dir : DIRECTION
+<
+    string UIWidget = "None";
+    string Space = "World";
+    string Object = "Light 0";
+> = {0.0, -1.0, 0.0};
+
+
+uniform mat4 Light0ViewPrj : SHADOWMAPMATRIX
+<
+    string Object = "Light 0";
+    string UIName = "Light 0 Matrix";
+    string UIWidget = "None";
+>;
+
+uniform texture2D Light0ShadowMap : SHADOWMAP
+<
+    string ResourceName = "";
+    string ResourceType = "2D";
+    string UIWidget = "None";
+    string Object = "Light 0";
+    string UIName = "light0ShadowMap";
+>;
+
+uniform vec3 Light0Color : LightColor
+<
+    string UIName = "Light 0 Color";
+    string Object = "Light 0";
+> = {1.0, 1.0, 1.0};
+
+
+uniform float Light0Intensity : LightIntensity
+<
+    string UIName = "Light 0 Color";
+    string Object = "Light 0";
+> = 1.0;
+
+
+uniform sampler2D Light0ShadowMapTex = sampler_state
+{
+    Texture = <Light0ShadowMap>;
+};
+
+attribute vs_input
+{
+
+    vec3 in_position : POSITION;
+    vec3 in_normal : NORMAL;
+    vec4 vs_color : COLOR0;
+    vec2 vs_uv : TEXCOORD3;
+    //vec3 color;
+    float incandescence;
+    vec3 camPos : ViewPosition;
+
+};
+ 
+attribute vs_to_ps
+{
+    vec4 fs_Col;
+    vec2 fs_Uv;
+	vec3 fs_Nor;
+	vec4 fs_Pos;
+    vec4 fs_WorldPos;
+    vec4 fs_LightSpacePos;
+    vec4 fs_spec;
+    vec3 fs_Cam;
+};
+ 
+attribute ps_output 
+{
+    vec4 out_color[1];
+}
+ 
+GLSLShader VS
+{
+    void main() 
+    {
+        fs_Uv = vec2(vs_uv.x, 1.0 - vs_uv.y);
+        float speed = 1.0;
+        float frequency = 60.0;
+        fs_Cam = camPos;
+        fs_Col = vs_color;
+    	fs_Nor = in_normal;
+
+       // in_position.x += 1;
+
+        vec3 projPos = in_position;
+        
+        fs_LightSpacePos = Light0ViewPrj * vec4(in_position, 1.0);
+        fs_LightSpacePos = fs_LightSpacePos / fs_LightSpacePos.w;
+fs_LightSpacePos.xy = fs_LightSpacePos.xy * 0.5 + 0.5;
+
+        float time = float(frame);
+        fs_spec = vec4(color.xyz, 1.0);
+        vec3 offset = tremor * sin(time * speed + frequency * projPos);
+        float mod = max(1.0 - 1 * dot(fs_Nor, -camDir), 0.0);
+        projPos = projPos + offset * mod;
+        fs_WorldPos = vec4(projPos,2.0);
+        vec4 res = wvp * vec4(projPos, 1.0);
+        gl_Position = res;
+        fs_Pos = res;
+    }
+}
+ 
+GLSLShader PS
+{
+   // const vec3 lightDir = vec3(1.0,1.0,0.0);
+	vec4 pigment(vec4 col, float ctrl) {
+        vec4 res = vec4(0.0);
+        
+        if(ctrl < 0.5) {
+            float t = max(3.0 - ctrl * 4.0,  0.0);
+            
+            res.x = pow(col.x,t);
+            res.y = pow(col.y,t);
+            res.z = pow(col.z,t);
+            res.w = pow(col.w,t);
+
+            //3.0 - ctrl * 4.0
+	    
+        } else {
+            res = (ctrl - 0.5) * 2.0 * (vec4(u_PaperColor, 1.0) - col) + col;
+        }
+        return res;
+	}
+
+    vec3 hash3 (vec3 p) {
+        return fract(sin(vec3(dot(p, vec3(127.1, 311.7, 841.3)), 
+        dot(p, vec3(269.5, 183.3, 417.2)), 
+        dot(p, vec3(564.7, 299.1, 603.6)))) * 43758.5453);
+    }
+
+    vec3 cubic3(vec3 t) {
+        return t * t * (3.0 - 2.0 * t);
+    }
+
+    float surflet3(vec3 p, vec3 gridPoint) {
+        vec3 t = vec3(1.0) - cubic3(abs(p - gridPoint));
+        vec3 gradient = hash3(gridPoint) * 2.0 - vec3(1);
+        vec3 diff = p - gridPoint;
+        float height = dot(diff, gradient);
+        return height * t.x * t.y * t.z;
+    }
+
+    float perlin3(vec3 p) {
+        vec3 f = floor(p);
+        float res = 0.0;
+        for(int i = 0; i <= 1; i++) {
+            for(int j = 0; j <= 1; j++) {
+                for(int k = 0; k <= 1; k++) {
+                    res += surflet3(p, f+vec3(i,j,k));
+                }
+            }
+        }
+        return res;
+    }
+
+    float calcShadow(vec2 uv) 
+    {
+        float shadow_dist = textureLod(Light0ShadowMapTex, uv,0).r;
+        if(fs_LightSpacePos.z < shadow_dist + 0.00001) {
+            return 1.0;
+        } else {
+            return 0.2;
+        }
+        return shadow_dist;
+    }
+
+    vec4 getAlbedo() {
+        if(textured) {
+            return texture2D(colorTex, fs_Uv);
+        } else {
+            return vec4(nonTexturedColor, 1.0);
+        }
+    }
+
+
+    void main()
+    {
+        vec3 lightDir = -Light0Dir;
+        float lightIntensity = Light0Intensity * max(dot(normalize(lightDir), normalize(fs_Nor)), 0.0);
+        lightIntensity *= calcShadow(fs_LightSpacePos.xy);
+        lightIntensity = (lightIntensity + dilution - 1) / dilution;
+        vec4 sampled = getAlbedo();
+        float c = cangianteFactor;
+        vec4 cc = vec4(sampled.xyz, 1.0) + vec4(Light0Color, 1.0) * lightIntensity * c;
+
+        float d = dilutionFactor;
+
+
+        vec4 final =  mix(cc, vec4(u_PaperColor,1.0), clamp(lightIntensity * d, 0,1));
+
+        //final += sampled;
+        float freq = fs_Col.x + noiseFrequency;
+        //freq = 0.0;
+        float turb = perlin3(fs_WorldPos.xyz * freq);
+        final = pigment(final, turb);
+        //final color
+        out_color[0] = vec4(final.xyz, 1.0);
+
+    }
+}
+ 
+technique Main
+{
+    pass p0
+    {
+        VertexShader (in vs_input, out vs_to_ps) = VS;
+        PixelShader (in vs_to_ps, out ps_output) = PS;
+    }
+
+
+}

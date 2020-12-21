@@ -1,0 +1,415 @@
+uniform mat4 wvp : WorldViewProjection;
+uniform vec4 u_PaperColor;
+uniform texture2d u_ControlImage;
+uniform texture2d u_BlurredImage;
+uniform texture2d u_StylizedImage;
+uniform texture2d u_PaperNormal;
+uniform texture2d u_NoiseImage;
+
+uniform vec3 camDir : ViewDirection ;
+
+//Global substrate params
+uniform texture2d u_DepthImage;
+uniform float substrateHeightScale = 5.0;
+uniform float dryness = 1.0;
+uniform float paperDistortion = 1.0;
+uniform float lightAngle = 3.1;
+uniform float roughness = 1.0;
+uniform float strokeFrequency = 9.0;
+uniform float strokeAngle = 90.0;
+uniform float hatchIntensity = 1.0;
+uniform bool useDepth;
+uniform vec4 u_HatchColor;
+
+uniform bool enabled;
+uniform bool outlineEnabled;
+uniform float angleRand = 1.0;
+
+uniform float offsetRand = 1.0;
+
+uniform float outlineThreshold = 1.0;
+uniform float cellBlend = 1.0;
+uniform texture2d u_Texture2;
+uniform vec2 rvd : RelativeViewportDimensions;
+uniform vec2 u_Dimensions : ViewportPixelSize;
+uniform bool showControl = false;
+
+
+uniform texture2D u_HatchImage;
+
+uniform sampler2D hatchTex = sampler_state
+{
+    Texture = <u_HatchImage>;
+};
+
+
+attribute vs_quad_input
+{
+    vec3 in_position : POSITION;
+    vec2 vs_uv : TEXCOORD0;
+
+};
+uniform texture2d u_ColorImage;
+
+uniform sampler2D colorTex = sampler_state
+{
+    Texture = <u_ColorImage>;
+};
+
+
+
+uniform sampler2D noiseTex = sampler_state
+{
+    Texture = <u_NoiseImage>;
+};
+
+uniform sampler2D paperNorm = sampler_state
+{
+    Texture = <u_PaperNormal>;
+};
+
+uniform sampler2D blurTex = sampler_state
+{
+    Texture = <u_BlurredImage>;
+};
+
+uniform sampler2D stylizedTex = sampler_state
+{
+    Texture = <u_StylizedImage>;
+};
+
+uniform sampler2D controlTex = sampler_state
+{
+    Texture = <u_ControlImage>;
+};
+
+uniform sampler2D depthTex = sampler_state
+{
+    Texture = <u_DepthImage>;
+};
+
+ 
+attribute vs_to_ps
+{
+    vec2 fs_uv;
+};
+ 
+attribute ps_output 
+{
+    vec4 out_color;
+}
+ 
+GLSLShader VS
+{
+    void main() 
+    {        
+        fs_uv = vs_uv;
+        gl_Position = wvp * vec4(in_position,1.0);
+    }
+}
+ 
+GLSLShader PS
+{
+
+    const float[6] thresholds = float[6](0.05,0.15,0.25,0.35,0.45,0.6);
+
+    vec4 pow4(vec4 v, float exp) {
+        return vec4(pow(v.x,exp), pow(v.y,exp), pow(v.z,exp), pow(v.w,exp));
+    }
+
+
+    float hash1(float p) {
+        return fract(sin(p)* 43758.5453123);
+    }
+    vec3 hash3 (vec3 p) {
+        return fract(sin(vec3(dot(p, vec3(127.1, 311.7, 841.3)), 
+        dot(p, vec3(269.5, 183.3, 417.2)), 
+        dot(p, vec3(564.7, 299.1, 603.6)))) * 43758.5453);
+    }
+
+    vec3 cubic3(vec3 t) {
+        return t * t * (3.0 - 2.0 * t);
+    }
+
+    float surflet3(vec3 p, vec3 gridPoint) {
+        vec3 t = vec3(1.0) - cubic3(abs(p - gridPoint));
+        vec3 gradient = hash3(gridPoint) * 2.0 - vec3(1);
+        vec3 diff = p - gridPoint;
+        float height = dot(diff, gradient);
+        return height * t.x * t.y * t.z;
+    }
+
+    float perlin3(vec3 p) {
+        vec3 f = floor(p);
+        float res = 0.0;
+        for(int i = 0; i <= 1; i++) {
+            for(int j = 0; j <= 1; j++) {
+                for(int k = 0; k <= 1; k++) {
+                    res += surflet3(p, f+vec3(i,j,k));
+                }
+            }
+        }
+        return res;
+    }
+
+    vec2 sinOctaves(vec2 uv) {
+        return sin(uv) + 0.5 * sin(2 * uv) + 0.25 * sin(4 * uv) + 0.125 * sin(8 * uv);
+    }
+
+    //ideas: black outline, colored outline, use depth sobel, use color sobel, use both, tremor amount
+
+    vec4 outline(vec2 uv, float thickness, float tremor) {
+        vec3 colorSource = texture2D(colorTex, uv).xyz;
+        vec2 axis = vec2(1.0,1.0);
+        axis /= vec2(float(u_Dimensions.x), float(u_Dimensions.y));
+        vec4 res = vec4(0.0);
+
+       // uv += tremor * sinOctaves(40.0 * uv);
+        mat3 hKernel = mat3(vec3(3, 10, 3), vec3(0, 0, 0), vec3(-3, -10, -3));
+        mat3 vKernel = mat3(vec3(3, 0, -3), vec3(10, 0, -10), vec3(3, 0, -3));
+
+         hKernel = thickness * mat3(vec3(1, 2, 1), vec3(0, 0, 0), vec3(-1, -2, -1));
+         vKernel = thickness * mat3(vec3(1, 0, -1), vec3(2, 0, -2), vec3(1, 0, -1));
+
+
+       //  hKernel *= 10.0;
+       // vKernel *= 10.0;
+
+        vec3 hGradient = vec3(0.0);
+        vec3 vGradient = vec3(0.0);
+
+        vec3 hDepthGradient = vec3(0.0);
+        vec3 vDepthGradient = vec3(0.0);
+
+        for(int i = -1 ; i <= 1; i++) {
+            for(int j = -1; j <= 1; j++) {
+                vec2 destInd = uv + vec2(float(i), float(j)) * axis;
+                vec3 colorDest = texture2D(colorTex, destInd ).xyz;
+                vec3 depthDest = texture2D(depthTex, destInd ).xyz;
+
+               hGradient += hKernel[i + 1][j + 1] * colorDest;
+               vGradient += vKernel[i + 1][j + 1] * colorDest;
+
+                hDepthGradient += hKernel[i + 1][j + 1] * depthDest;
+               vDepthGradient += vKernel[i + 1][j + 1] * depthDest;
+
+            }
+        }
+
+        vec3 color = sqrt(hGradient * hGradient + vGradient * vGradient);
+        color = clamp(color, 0,1);
+
+                vec3 depthSobel = sqrt(hDepthGradient * hDepthGradient + vDepthGradient * vDepthGradient);
+        depthSobel = clamp(depthSobel, 0,1);
+        float p = perlin3(vec3(color.xy * vec2(0.7, 0.7),1.0));
+
+        if(!useDepth) {
+            return vec4(color, 1.0);
+        }
+        return vec4(depthSobel, 1.0);
+
+    }
+
+    vec2 rotate2D(vec2 v, float angle) {
+        mat2 m = mat2(vec2(cos(angle), sin(angle)), vec2(-sin(angle), cos(angle)));
+        return m * v;
+    }
+
+    vec2 rotateUV(vec2 uv, float angle) {
+        vec2 off_uv = uv - vec2(0.5);
+        off_uv = rotate2D(off_uv, angle);
+        off_uv += vec2(0.5);
+        return fract(off_uv);
+    }
+
+    vec2 scaleRotateUV(vec2 uv, float scalar, float angle) {
+        vec2 off_uv = uv - vec2(0.5);
+        off_uv *= scalar;
+        off_uv = rotate2D(off_uv, angle);
+        off_uv += vec2(0.5);
+        return fract(off_uv);
+    }
+
+    float luminance(vec3 col) {
+        return 0.2126*col.r + 0.7152*col.g + 0.0722*col.b;
+    }
+
+
+    float getHatchInterval(float lum) {
+        for(int i = 0; i < 6; i++) {
+            float interval1 = 0;
+            if (i > 0) {
+                interval1 = thresholds[i-1];
+            }
+
+            float interval2 = thresholds[i];
+
+            if(lum > interval1 && lum < interval2) {
+                return interval1;
+            }
+
+        }
+
+        return thresholds[5];
+    }
+
+
+
+    float hatch(float li, vec2 in_uv, vec2 offset, bool jitterX ) {
+
+        float a = 0.0;
+        //a =             0.001 * sin(20.0 * fs_Pos.x * fs_Pos.y);
+
+        float res = 1.0;
+        float minus = 0.0;
+        float test = 1.0;
+
+        //xy, yx, xz, zx, yz, zy
+
+        vec4 depth = texture2D(depthTex, fs_uv + vec2(0.2,0.0));
+
+        vec4 param = vec4(in_uv.xy, 1.0, 1.0);
+
+        float zone = sign(perlin3(param.xyz * 0.5) - 0.5);
+        zone = 1.0;
+        vec2 zone2= floor(param.xy * 10.0);
+        vec4 ctrl = texture2D(controlTex, vec2(fs_uv.x, 1 - fs_uv.y));
+
+        vec2 cell =  param.xy * strokeFrequency + offset;
+
+        if(jitterX) {
+            cell.x += 1.0 * hash1(694.543 * floor(cell.y));
+        } else {
+            cell.y += 1.0 * hash1(694.543 * floor(cell.x));
+
+        }
+        vec2 rand2 = hash3(vec3(offset * 3941.392, 1.0)).xy;
+
+        a = angleRand * (hash1(floor(cell.x)) + hash1(floor(cell.y)));
+
+        vec2 uv = fract(cell);
+
+        float offrand = offsetRand * (0.5 * (hash1(floor(cell.x)) + hash1(floor(cell.y))) - 0.5);
+        //uv = fract(uv + 0.2 * hash1(floor(hash1(cell.x) + hash1(cell.y)));
+
+        float randCellS = 0.1 * (hash1(floor(cell.x + rand2.x) * 238.8571) + hash1(floor(cell.y + rand2.y) * 385.222));
+
+
+        float noiseTest = 0.3 * perlin3(10.0 * strokeFrequency * vec3(in_uv, 1.0));
+        float resDist = 1.0;
+
+        for(int i = 0; i < 6; i++) {
+
+            float interv1 = 0.0;
+
+            if(i == 0) {
+                interv1 = 0.0;
+
+            } else {
+                interv1 = thresholds[i - 1];
+
+            }
+
+            float interv2 = float(i + 1.0) * 0.08;
+            interv2 = thresholds[i];
+            float interv = interv2 - interv1;
+
+            if(li <= interv2) {
+
+               // vec2 rotuv = uv * clamp(1 - depth.x * 0.3, 0.0, 1.0);
+                vec2 rotuv = rotateUV(uv, radians(a));
+                rotuv = fract(rotuv + offrand);
+                vec4 hatchcol = texture2D(hatchTex, rotuv);
+
+                float lum = luminance(hatchcol.xyz);
+                    resDist = rotuv.x;
+
+                //only add lum for dark strokes
+                if(lum < 0.6) {
+                    //the closer to last interval, the closer to 0 this is
+                    float lerpLum = smoothstep(interv1 + interv * 0.5, interv2 , li);
+                    //less li, less lum
+                    // lum = mix(0.0, lum, fs_Uv.x);
+                    lum = mix(lum, 0.9, lerpLum);
+
+                    vec2 sinoff = sin(uv * dryness) * roughness;
+                    //vec2 lerpUv = smoothstep(0.15, 0.3 + randCellS + noiseTest, uv);
+
+                    float centerDist = noiseTest + cellBlend * distance(uv, vec2(0.5,0.5));
+                    lum = mix(lum, 0.9, centerDist);
+                    
+                    //the artifacts aren't from gaps between cells, but rather in the cells themselves
+                   // lum = mix(0.9, lum, lerpUv.x);
+                   // lum = mix(0.9, lum, lerpUv.y);
+
+
+                    //lerpUv = smoothstep(0.8 - randCellS - noiseTest, 0.85, uv);
+                   // lum = mix(lum, 0.9, lerpUv.x);
+                   //lum = mix(lum, 0.9, lerpUv.y);
+
+                    res *= lum;
+                    float invInterval = 1.0 - interv2;
+                    minus += 1.0 - lum;
+                }
+
+
+
+                test = 0.1;
+            } else {
+             //res = 5.0;
+             //break;
+            } 
+
+            float aoff = angleRand * (hash1(floor(cell.x + i * i)) + hash1(floor(cell.y + i * i)));
+            a += aoff;
+            if(i < 3) {
+                a+= strokeAngle ;//+ i*i ;//* angleZone;
+
+            }
+
+        }
+
+        return res;
+       //return clamp(1 - minus, 0.0, 1.0);
+    }
+
+
+
+    void main()
+    {
+
+        vec2 off_uv = vec2(fs_uv.x, 1-fs_uv.y);
+
+
+        vec4 style = texture2D(stylizedTex, off_uv);
+        vec4 blur = texture2D(blurTex, off_uv);
+        vec4 ctrl = texture2D(controlTex, off_uv);
+
+        vec4 randpixel = 305.3275 * (texture2D(blurTex, vec2(0.5, 0.5)) 
+        + texture2D(blurTex, vec2(0.5, 0.3))
+        +texture2D(blurTex, vec2(0.3, 0.5)));
+
+out_color = vec4(1.0,1.0,1.0,1.0);
+        //add param to outline either depth or color
+        if(outlineEnabled) {
+            vec4 o = outline(off_uv, 1.0, 0.004);
+            float maxO = max(o.x, max(o.z, o.y));
+
+            //attempt to incorporate sketchiness, not great
+            vec4 o2 = outline(off_uv, 0.5, hatchIntensity * 0.0);
+            float maxO2 = max(o2.x, max(o2.z, o2.y));
+          //  maxO += maxO2;
+            maxO = smoothstep(outlineThreshold, 1.0, maxO);
+            out_color = vec4(vec3(1 - maxO), 1.0);
+        }
+    }
+}
+ 
+technique Main
+{
+    pass p0
+    {
+        VertexShader (in vs_quad_input, out vs_to_ps) = VS;
+        PixelShader (in vs_to_ps, out ps_output) = PS;
+    }
+}

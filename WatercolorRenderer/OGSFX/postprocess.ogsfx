@@ -1,0 +1,154 @@
+uniform mat4 wvp : WorldViewProjection;
+uniform vec4 u_PaperColor;
+uniform texture2d u_ColorImage;
+
+uniform texture2d u_DepthImage;
+uniform texture2d u_ControlImage;
+
+uniform vec2 rvd : RelativeViewportDimensions;
+uniform vec2 u_Dimensions : ViewportPixelSize;
+
+
+attribute vs_quad_input
+{
+    vec3 in_position : POSITION;
+    vec2 vs_uv : TEXCOORD0;
+};
+
+uniform sampler2D colorTex = sampler_state
+{
+    Texture = <u_ColorImage>;
+};
+
+uniform sampler2D depthTex = sampler_state
+{
+    Texture = <u_DepthImage>;
+};
+
+uniform sampler2D controlTex = sampler_state
+{
+    Texture = <u_ControlImage>;
+};
+ 
+
+attribute vs_to_ps
+{
+    vec2 fs_uv;
+};
+ 
+
+attribute ps_output 
+{
+    vec4 out_color[3];
+}
+ 
+GLSLShader VS
+{
+
+    void main() 
+    {        
+        fs_uv = vs_uv;
+        gl_Position = wvp * vec4(in_position,1.0);
+    }
+}
+ 
+GLSLShader PS
+{
+    const float kernel[25] = float[25](0.003765, 0.015019, 0.023792, 0.015019, 0.003765,
+    0.015019, 0.059912, 0.094907, 0.059912, 0.015019,
+    0.023792, 0.094907, 0.150342, 0.094907, 0.023792,
+    0.015019, 0.059912, 0.094907, 0.059912, 0.015019,
+    0.003765, 0.015019, 0.023792, 0.015019, 0.003765);
+
+
+    const float kernel1D[21] = float[21](0.043959, 0.045015, 0.045982, 0.046852,    
+    0.047619, 0.048278, 0.048825, 0.049254, 0.049562, 0.049748, 0.049811,
+    0.049748, 0.049562, 0.049254, 0.048825, 0.048278, 0.047619, 0.046852,
+    0.045982, 0.045015, 0.043959);
+
+    vec4 bleed() {
+        vec2 axis = vec2(0.0,1.0);
+        axis /= vec2(float(u_Dimensions.x), float(u_Dimensions.y));
+        vec4 res = vec4(0.0);
+        float dThreshold = 0.1;
+        float ctrlSource = texture2D(controlTex, fs_uv).z;
+        float depthSource = texture2D(depthTex, fs_uv ).x;
+
+        out_color[1] = texture2D(controlTex, fs_uv);
+        out_color[2] = texture2D(controlTex, fs_uv);
+        vec4 colSource = texture2D(bleedTex, fs_uv);
+        bool bled = false;
+        float numbled = 0;
+
+        for(int i = -10; i <= 10; i++) {
+            vec2 destInd = fs_uv + float(i) * axis;
+            float depthDest = texture2D(depthTex, destInd ).x;
+            float ctrlDest = texture2D(controlTex, destInd ).z;
+            vec4 colDest = texture2D(bleedTex, destInd);
+            if(ctrlSource > 0.00001 || ctrlDest > 0.00001) {
+                bool behind = (depthSource - dThreshold > depthDest);
+
+                if((ctrlDest > 0.00001 && behind) || (ctrlSource > 0.00001 && !behind)) {
+                    res += colDest * kernel1D[i + 10];
+                    out_color[2].z += kernel1D[i + 10] * ctrlDest;
+                    bled = true;
+                } else {
+                    res += colSource * kernel1D[i + 10];
+                }
+
+            } else {
+                res += colSource * kernel1D[i + 10];
+            }
+        }
+
+        if(bled) {
+            //update control texture
+            //out_color[2].z = 1.0;
+
+        } else {
+            //out_color[2].z = 0.0;
+        }
+        out_color[0] = res;
+        return res;
+    }
+
+    vec4 blurred() {
+        vec4 totalCol = vec4(0.0);
+        float totalWeight = 0.0;
+
+        for(int i = -2; i <= 2; i++) {
+            for(int j = -2; j <= 2; j++) {
+                vec2 uv = fs_uv;
+                uv.x = clamp(fs_uv.x + float(i) / float(u_Dimensions.x), 0.0, 1.0);
+                uv.y = clamp(fs_uv.y + float(j) / float(u_Dimensions.y), 0.0, 1.0);
+                float weight = kernel[(i+2) * 5 + (j+2)];
+
+                totalCol +=  texture2D(colorTex, uv) * weight;
+                totalWeight += weight;
+
+
+            }
+        }
+
+        totalCol /= totalWeight;
+
+        //totalCol = vec4(1.0);
+        out_color[1] = totalCol;
+        return totalCol;
+    }
+
+    void main()
+    {
+        bleed();
+        blurred();
+    }
+}
+ 
+technique Main
+{
+    pass p0
+    {
+        VertexShader (in vs_quad_input, out vs_to_ps) = VS;
+        PixelShader (in vs_to_ps, out ps_output) = PS;
+    }
+}

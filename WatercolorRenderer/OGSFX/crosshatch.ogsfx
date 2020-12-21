@@ -1,0 +1,515 @@
+uniform mat4 world: World;
+uniform mat4 view: WorldView;
+uniform mat4 wvp : WorldViewProjection;
+uniform vec3 camDir : ViewDirection 
+<
+    string UIWidget = "None";
+>;
+uniform bool local : LocalViewer;
+uniform int frame : Frame;
+
+uniform vec3 u_PaperColor <
+    string UIName = "Paper Color";
+    string UIWidget = "ColorPicker";
+
+> = {1.0,1.0,1.0};
+
+
+uniform float angleRand = 1.0;
+uniform float offsetRand = 1.0;
+uniform float cellBlend = 1.0;
+
+uniform vec3 color;
+uniform float strokeAngle = 60.0;
+uniform float strokeFrequency = 1.0;
+
+uniform float dilutionFactor = 0.2;
+uniform float cangianteFactor = 0.2;
+uniform float noiseFrequency 
+<
+    string ResourceName = "";
+    string UIName = "Noise Frequency";
+    string ResourceType = "2D";
+> = 0.5;
+
+uniform float M_PI = 3.14159265359;
+
+uniform bool textured = true;
+
+
+uniform float tremor 
+<
+    string ResourceName = "";
+    string UIName = "Hand Tremor Amount";
+    string ResourceType = "2D";
+> = 0.02;
+
+
+uniform texture2D diffuseImage
+<
+    string ResourceName = "";
+    string UIName = "Diffuse Image";
+    string ResourceType = "2D";
+    string UIWidget = "FilePicker";
+    string UIGroup = "Diffuse";
+>;
+
+
+uniform texture2D hatchImage
+<
+    string ResourceName = "";
+    string UIName = "Hatch Image";
+    string ResourceType = "2D";
+    string UIWidget = "FilePicker";
+    string UIGroup = "Diffuse";
+>;
+
+uniform vec3 nonTexturedColor
+<
+    string UIName = "Non-Textured Color";
+    string UIWidget = "ColorPicker";
+> = {0.561,0.561,0.561};
+
+uniform sampler2D colorTex = sampler_state
+{
+    Texture = <diffuseImage>;
+};
+
+uniform sampler2D hatchTex = sampler_state
+{
+    Texture = <hatchImage>;
+};
+
+
+
+uniform vec3 Light0Pos : POSITION
+<
+    string UIWidget = "None";
+    string Space = "World";
+    string Object = "Light 0";
+> = {1.0, 1.0, 1.0};
+
+uniform vec3 Light0Dir : DIRECTION
+<
+    string UIWidget = "None";
+    string Space = "World";
+    string Object = "Light 0";
+> = {0.0, -1.0, 0.0};
+
+
+uniform mat4 Light0ViewPrj : SHADOWMAPMATRIX
+<
+    string Object = "Light 0";
+    string UIName = "Light 0 Matrix";
+    string UIWidget = "None";
+>;
+
+uniform texture2D Light0ShadowMap : SHADOWMAP
+<
+    string ResourceName = "";
+    string ResourceType = "2D";
+    string UIWidget = "None";
+    string Object = "Light 0";
+    string UIName = "light0ShadowMap";
+>;
+
+uniform vec3 Light0Color : LightColor
+<
+    string UIName = "Light 0 Color";
+    string Object = "Light 0";
+> = {1.0, 1.0, 1.0};
+
+
+uniform float Light0Intensity : LightIntensity
+<
+    string UIName = "Light 0 Color";
+    string Object = "Light 0";
+> = 1.0;
+
+
+uniform sampler2D Light0ShadowMapTex = sampler_state
+{
+    Texture = <Light0ShadowMap>;
+};
+
+attribute vs_input
+{
+
+    vec3 in_position : POSITION;
+    vec3 in_normal : NORMAL;
+    vec3 in_tangent : TANGENT;
+    vec4 vs_color : COLOR0;
+    vec2 vs_uv : TEXCOORD3;
+    //vec3 color;
+    float incandescence;
+    vec3 camPos : ViewPosition;
+
+};
+ 
+attribute vs_to_ps
+{
+    vec4 fs_Col;
+    vec2 fs_Uv;
+	vec3 fs_Nor;
+        vec3 fs_Tan;
+        vec3 fs_Right;
+
+	vec4 fs_Pos;
+    vec4 fs_WorldPos;
+    vec4 fs_LightSpacePos;
+    vec4 fs_spec;
+    vec3 fs_Cam;
+};
+ 
+attribute ps_output 
+{
+    vec4 out_color[1];
+}
+ 
+GLSLShader VS
+{
+    void main() 
+    {
+        fs_Uv = vec2(vs_uv.x, 1.0 - vs_uv.y);
+        float speed = 1.0;
+        float frequency = 60.0;
+        fs_Cam = camPos;
+        fs_Col = vs_color;
+    	fs_Nor = in_normal;
+        fs_Tan = in_tangent;
+        fs_Right = cross(fs_Tan, fs_Nor);
+
+       // in_position.x += 1;
+
+        vec3 projPos = in_position;
+        
+        fs_LightSpacePos = Light0ViewPrj * vec4(in_position, 1.0);
+        fs_LightSpacePos = fs_LightSpacePos / fs_LightSpacePos.w;
+fs_LightSpacePos.xy = fs_LightSpacePos.xy * 0.5 + 0.5;
+
+        float time = float(frame);
+        fs_spec = vec4(color.xyz, 1.0);
+        vec3 offset = tremor * sin(time * speed + frequency * projPos);
+        float mod = max(1.0 - 1 * dot(fs_Nor, -camDir), 0.0);
+        fs_WorldPos = vec4(projPos,2.0);
+        vec4 res = wvp * vec4(projPos, 1.0);
+        gl_Position = res;
+        fs_Pos = res / res.w;
+    }
+}
+ 
+GLSLShader PS
+{
+
+    const float[6] thresholds = float[6](0.06,0.15,0.3,0.4,0.5,0.65);
+	vec4 pigment(vec4 col, float ctrl) {
+        vec4 res = vec4(0.0);
+        
+        if(ctrl < 0.5) {
+            float t = max(3.0 - ctrl * 4.0,  0.0);
+            
+            res.x = pow(col.x,t);
+            res.y = pow(col.y,t);
+            res.z = pow(col.z,t);
+            res.w = pow(col.w,t);
+
+            //3.0 - ctrl * 4.0
+	    
+        } else {
+            res = (ctrl - 0.5) * 2.0 * (vec4(u_PaperColor, 1.0) - col) + col;
+        }
+        return res;
+	}
+
+    float hash1(float p) {
+        return fract(sin(p)* 43758.5453123);
+    }
+
+    vec3 hash3 (vec3 p) {
+        return fract(sin(vec3(dot(p, vec3(127.1, 311.7, 841.3)), 
+        dot(p, vec3(269.5, 183.3, 417.2)), 
+        dot(p, vec3(564.7, 299.1, 603.6)))) * 43758.5453);
+    }
+
+    vec3 cubic3(vec3 t) {
+        return t * t * (3.0 - 2.0 * t);
+    }
+
+    float surflet3(vec3 p, vec3 gridPoint) {
+        vec3 t = vec3(1.0) - cubic3(abs(p - gridPoint));
+        vec3 gradient = hash3(gridPoint) * 2.0 - vec3(1);
+        vec3 diff = p - gridPoint;
+        float height = dot(diff, gradient);
+        return height * t.x * t.y * t.z;
+    }
+
+    float perlin3(vec3 p) {
+        vec3 f = floor(p);
+        float res = 0.0;
+        for(int i = 0; i <= 1; i++) {
+            for(int j = 0; j <= 1; j++) {
+                for(int k = 0; k <= 1; k++) {
+                    res += surflet3(p, f+vec3(i,j,k));
+                }
+            }
+        }
+        return res;
+    }
+
+    float calcShadow(vec2 uv) 
+    {
+        float shadow_dist = textureLod(Light0ShadowMapTex, uv,0).r;
+        if(fs_LightSpacePos.z < shadow_dist + 0.00001) {
+            return 1.0;
+        } else {
+            return 0.2;
+        }
+        return shadow_dist;
+    }
+
+    vec4 getAlbedo() {
+        if(textured) {
+            return texture2D(colorTex, fs_Uv);
+        } else {
+            return vec4(nonTexturedColor, 1.0);
+        }
+    }
+
+
+    vec2 rotate2D(vec2 v, float angle) {
+        mat2 m = mat2(vec2(cos(angle), sin(angle)), vec2(-sin(angle), cos(angle)));
+        return m * v;
+    }
+
+    vec2 rotateUV(vec2 uv, float angle) {
+        vec2 off_uv = uv - vec2(0.5);
+        off_uv = rotate2D(off_uv, angle);
+        off_uv += vec2(0.5);
+        return clamp(off_uv, 0.0, 1.0);
+    }
+
+
+    float luminance(vec3 col) {
+        return 0.2126*col.r + 0.7152*col.g + 0.0722*col.b;
+    }
+
+
+        float hatch2(float li, vec2 in_uv, vec2 offset, bool jitterX ) {
+
+        float a = 0.0;
+        //a =             0.001 * sin(20.0 * fs_Pos.x * fs_Pos.y);
+
+        float res = 1.0;
+        float minus = 0.0;
+        float test = 1.0;
+
+        //xy, yx, xz, zx, yz, zy
+
+        vec4 param = vec4(in_uv.xy, 1.0, 1.0);
+
+        float zone = sign(perlin3(param.xyz * 0.5) - 0.5);
+        zone = 1.0;
+        vec2 zone2= floor(param.xy * 10.0);
+
+        vec2 cell =  param.xy * strokeFrequency + offset;
+
+        if(jitterX) {
+            cell.x += 1.0 * hash1(694.543 * floor(cell.y));
+        } else {
+            cell.y += 1.0 * hash1(694.543 * floor(cell.x));
+
+        }
+        vec2 rand2 = hash3(vec3(offset * 3941.392, 1.0)).xy;
+
+        a = angleRand * (hash1(floor(cell.x)) + hash1(floor(cell.y)));
+
+        vec2 uv = fract(cell);
+
+        float offrand = offsetRand * (hash1(floor(cell.x)) + hash1(floor(cell.y)));
+        float off = 0;
+        //uv = fract(uv + 0.2 * hash1(floor(hash1(cell.x) + hash1(cell.y)));
+
+        float randCellS = 0.1 * (hash1(floor(cell.x + rand2.x) * 238.8571) + hash1(floor(cell.y + rand2.y) * 385.222));
+        float noiseTest = 0.3 * perlin3(10.0 * strokeFrequency * vec3(in_uv, 1.0));
+        float resDist = 1.0;
+
+        for(int i = 0; i < 6; i++) {
+
+            float interv1 = 0.0;
+
+            if(i == 0) {
+                interv1 = 0.0;
+
+            } else {
+                interv1 = thresholds[i - 1];
+
+            }
+
+            float interv2 = float(i + 1.0) * 0.08;
+            interv2 = thresholds[i];
+            float interv = interv2 - interv1;
+
+            if(li <= interv2) {
+                vec2 rotuv = rotateUV(uv, radians(a));
+                rotuv = fract(rotuv + offrand + off);
+                vec4 hatchcol = texture2D(hatchTex, rotuv);
+
+                float lum = luminance(hatchcol.xyz);
+                    resDist = rotuv.x;
+
+                //only add lum for dark strokes
+                if(lum < 0.7) {
+                    //the closer to last interval, the closer to 0 this is
+                    float lerpLum = smoothstep(interv1 + interv * 0.5, interv2 , li);
+                    lum = mix(lum, 0.9, lerpLum);
+
+                    float centerDist = noiseTest + cellBlend * distance(uv, vec2(0.5,0.5));
+                    lum = mix(lum, 0.9, centerDist);
+                    
+                    res = min(lum, res);
+                    float invInterval = 1.0 - interv2;
+                    minus += 1.0 - lum;
+                }
+
+
+
+                test = 0.1;
+            } else {
+             //res = 5.0;
+             //break;
+            } 
+            off += 0.1;
+
+            float aoff = angleRand * (hash1(floor(cell.x + i * i)) + hash1(floor(cell.y + i * i)));
+            a += aoff;
+            if(i < 3) {
+                a+= strokeAngle ;//+ i*i ;//* angleZone;
+
+            }
+
+        }
+       return clamp(1 - minus, 0.0, 1.0);
+    }
+
+
+//input is light intensity
+    float hatch(float li, float offset) {
+
+        float a = 0.0;
+        //a =             0.001 * sin(20.0 * fs_Pos.x * fs_Pos.y);
+
+        float res = 1.0;
+        float minus = 0.0;
+        float test = 1.0;
+
+
+        vec2 p_uv = fract((fs_WorldPos.xy + fs_WorldPos.yx + fs_WorldPos.xz + fs_WorldPos.zx + fs_WorldPos.yz +fs_WorldPos.zy) * 0.05);
+
+
+        //xy, yx, xz, zx, yz, zy
+
+        vec4 param = vec4(fs_Uv.x, fs_Uv.y, 1.0, 1.0);
+        float zone = sign(perlin3(param.xyz * 0.5) - 0.5);
+        zone = 1.0;
+        float angleZone = sign(perlin3(param.xyz * 2.9) - 0.5);
+        vec3 rand = hash3(camDir.xyz);
+        a+=(rand.x + rand.y + rand.z) * 10.0;
+
+            //zone = floor(param.xy * 5.0);
+            vec2 zone2= floor(param.xy * 5.0);
+
+         //   vec2 uv = abs(fract(zone * param.xy * 1.0 + offset)) * 0.4 + 0.3 + (0.2 * (zone + 1));
+        vec2 uv = fract(param.xy * strokeFrequency + offset);
+          //  a = 20.0 * floor(hash3(vec3(zone2, 1.0)).x * 30.0) * 10.0;
+
+        for(int i = 0; i < 6; i++) {
+            float interv1 = 0.0;
+
+            if(i == 0) {
+                interv1 = 0.0;
+
+            } else {
+                interv1 = thresholds[i - 1];
+
+            }
+
+            float interv2 = float(i + 1.0) * 0.08 ;
+            interv2 = thresholds[i];
+
+            // + 0.01 * sin(20.0 * fs_Pos.x * fs_Pos.y)
+            float interv = interv2 - interv1;
+            interv2 - li;
+            if(li <= interv2) {
+
+
+
+           // fs_WorldPos.xy + fs_Pos.zx;
+
+            vec2 rotuv = rotateUV(uv, radians(a));
+                vec4 hatchcol = texture2D(colorTex, rotuv);
+
+                float lum = luminance(hatchcol.xyz);
+
+                //only add lum for dark strokes
+                if(lum < 0.9) {
+                    //the closer to last interval, the closer to 0 this is
+                    float lerpLum = smoothstep(interv1 + interv * 0.5, interv2 , li);
+                    //lum *= lerpLum;
+                    //lum *= 0.2;
+                    //less li, less lum
+                    // lum = mix(0.0, lum, fs_Uv.x);
+
+                    lum = mix(lum, 0.9, lerpLum);
+
+                    vec2 lerpUv = smoothstep(0.0, 0.2, uv);
+                    //lum = mix(0.9, lum, lerpUv.x);
+                    //lum = mix(0.9, lum, lerpUv.y);
+
+                    lerpUv = smoothstep(0.8, 1.0, uv);
+                    //lum = mix(lum, 0.9, lerpUv.x);
+                    //lum = mix(lum, 0.9, lerpUv.y);
+
+                    res = min(lum, res);
+                    minus += 0.9 - lum;
+                }
+
+
+
+                test = 0.1;
+            } else {
+             //res = 5.0;
+             //break;
+            }
+            a+= strokeAngle + i*i ;//* angleZone;
+
+        }
+
+        minus*= 1.3;
+        return clamp(1 - minus, 0.0, 1.0);
+    }
+
+
+    void main()
+    {
+        vec3 lightDir = -Light0Dir;
+        float lightIntensity = Light0Intensity * max(dot(normalize(lightDir), normalize(fs_Nor)), 0.0);
+        lightIntensity *= calcShadow(fs_LightSpacePos.xy);
+        float hatchlight = hatch2(lightIntensity, fs_Uv, vec2(0.0), true);
+        float hatchlight2 = hatch2(lightIntensity, fs_Uv, vec2(0.0,0.5), true);
+        float hatchfull = pow(hatchlight2  * hatchlight, 2.0);
+
+        vec4 final = hatchfull * vec4(u_PaperColor, 1.0);
+        out_color[0] = vec4(final.xyz, 1.0);
+    }
+}
+ 
+technique Main
+{
+    pass p0
+    {
+        VertexShader (in vs_input, out vs_to_ps) = VS;
+        PixelShader (in vs_to_ps, out ps_output) = PS;
+    }
+
+
+}

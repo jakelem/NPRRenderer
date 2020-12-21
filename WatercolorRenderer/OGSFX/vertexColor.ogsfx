@@ -1,0 +1,72 @@
+uniform mat4 world: World;
+uniform mat4 view: WorldView;
+uniform mat4 wvp : WorldViewProjection;
+uniform vec3 camDir : ViewDirection;
+uniform bool local : LocalViewer;
+uniform int frame : Frame;
+uniform vec4 u_PaperColor;
+uniform vec3 color;
+
+
+attribute vs_input
+{
+    vec3 in_position : POSITION;
+    vec3 in_normal : NORMAL;
+    vec4 vs_color : COLOR0;
+    vec4 vs_texture : TEXTURE0;
+    //vec3 color;
+    float incandescence;
+    vec3 camPos : ViewPosition;
+
+};
+ 
+
+attribute vs_to_ps
+{
+    vec4 fs_Col;
+	vec4 fs_Pos;
+};
+ 
+
+attribute ps_output 
+{
+    vec4 out_color[2];
+}
+ 
+
+GLSLShader VS
+{
+
+    void main() 
+    {
+        fs_Col = vs_color;
+        vec4 res = wvp * vec4(in_position, 1.0);
+        gl_Position = res;
+        fs_Pos = res;
+    }
+}
+ 
+
+GLSLShader PS
+{
+    void main()
+    {
+        //control
+        float depth = 0.01 * float(fs_Pos.z);
+        //depth = 1.0;
+        out_color[0] = fs_Col;
+        out_color[1] = vec4(depth, depth,depth,1.0);
+    }
+}
+ 
+
+technique Main
+{
+    pass p0
+    {
+        VertexShader (in vs_input, out vs_to_ps) = VS;
+        PixelShader (in vs_to_ps, out ps_output) = PS;
+    }
+
+
+}

@@ -12,8 +12,8 @@ The first NPR effect that I reproduce is expressive watercolor shading. The defi
 In addition to the post process shaders, which apply global control, users can specify materials in Maya that implement part of the watercolor pipeline. These are done through the glslShader plugin in Maya, which allows users to create new materials based on custom OGSFX files.
 
 <p align="center">
-<img src="images/IcelandWC.png" alt="drawing" width="350"/>
-<img src="images/IcelandControl.png" alt="drawing" width="350"/>
+<img src="images/icelandWC.png" alt="drawing" width="350"/>
+<img src="images/icelandControl.png" alt="drawing" width="350"/>
 </p>
 <p align= "center">
 The final image (left) and the control image (right).
@@ -22,7 +22,7 @@ The final image (left) and the control image (right).
 # Tonal Art Map Hatching
 <p align="center">
 
-<img src="images/icelandhatch.png" alt="drawing" width="400"/>
+<img src="images/icelandHatch.png" alt="drawing" width="400"/>
 <img src="images/bust.png" alt="drawing" width="290"/>
 </p>
 
@@ -36,7 +36,7 @@ Below are some artistic experiments made with the tool:
 <p align="center">
 <img src="images/PopArt.png" alt="drawing" width="280"/>
 
-<img src="images/IcelandMixed.png" alt="drawing" width="420"/>
+<img src="images/icelandMixed.png" alt="drawing" width="420"/>
 </p>
 
 

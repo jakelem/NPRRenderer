@@ -52,6 +52,19 @@ MStatus initializePlugin(MObject obj)
         MGlobal::displayInfo("registered node complete");
     }
 
+
+    MString nodeCommand(   "if( `objExists nprSettings` ) {"
+                               "select nprSettings;"
+                           "} else {"
+                               "createNode locator -n nprDummyNode;"
+                               "createNode nprNode -n nprSettings;"
+                               "connectAttr nprSettings.output nprDummyNode.lpx;"
+                               "select nprSettings;"
+                           "}"
+                        );
+
+    MGlobal::executeCommand(nodeCommand);
+
     return status;
 }
 

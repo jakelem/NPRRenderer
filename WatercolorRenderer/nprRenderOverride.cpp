@@ -29,9 +29,12 @@ nprRenderOverride::nprRenderOverride(const MString& name) : MRenderOverride(name
     present = new MPresentTarget("Present Target");
     renderer = MRenderer::theRenderer();
     shaderManager = renderer->getShaderManager();
-    shaderManager->addShaderPath("/Users/Jake/Documents/Penn/2020-2021/20Fall/Senior\ Design/Senior-Design/WatercolorRenderer/OGSFX");
+
+    //edit to be current path of this project
+    MString projectPath("/Users/Jake/Documents/Penn/2020-2021/20Fall/Senior\ Design/Senior-Design/WatercolorRenderer/");
+    shaderManager->addShaderPath(projectPath + "OGSFX");
     textureManager = renderer->getTextureManager();
-    textureManager->addImagePath("/Users/Jake/Documents/Penn/2020-2021/20Fall/Senior\ Design/Senior-Design/WatercolorRenderer/Textures");
+    textureManager->addImagePath(projectPath + "Textures");
 
     paperTexture = textureManager->acquireTexture("normal_stockpaper.jpg");
     noiseTexture = textureManager->acquireTexture("bump_stockpaper.jpg");

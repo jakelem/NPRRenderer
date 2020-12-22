@@ -49,6 +49,7 @@ Below are some artistic experiments made with the tool:
 # Resources
 - [MNPR](https://artineering.io/software/MNPRX/)
 - [Art-directed watercolor stylization of 3D animations in real-time](https://artineering.io/publications/Art-Directed-Watercolor-Stylization-of-3D-Animations-in-Real-Time/)
-- [Edge- and substrate-based effects for watercolor stylizationd](https://artineering.io/publications/Edge-and-Substrate-Based-Effects-for-Watercolor-Stylization/)
+- [Edge- and substrate-based effects for watercolor stylization](https://artineering.io/publications/Edge-and-Substrate-Based-Effects-for-Watercolor-Stylization/)
 - [Real Time Hatching](http://hhoppe.com/proj/hatching/)
 - [Man Wearing Wreath Model by Geoffrey Marchal (Licensed under Creative Commons)](https://sketchfab.com/3d-models/man-wearing-a-wreath-1cebca66989a48b091b027e24c561f4c)
+- [Maya API Reference](https://help.autodesk.com/view/MAYAUL/2017/ENU/?guid=__cpp_ref_index_html)
